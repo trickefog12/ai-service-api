@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+stripe
+python-dotenv
+google-cloud-vision
+python-multipart
