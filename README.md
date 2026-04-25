@@ -1,21 +1,31 @@
-# AI Service API (FastAPI + Google Vision + Stripe)
+# AI Service API
 
-Backend API that:
-- Creates Stripe Checkout sessions to gate access (payments)
-- Analyzes uploaded images using Google Cloud Vision API and returns detected labels
+A backend API built with FastAPI that integrates Stripe for payments and Google Cloud Vision API for image analysis.
+
+## Features
+- Create Stripe Checkout sessions
+- Upload an image and analyze it with Google Vision API
+- Return image labels in JSON format
+- Secure configuration using environment variables
 
 ## Tech Stack
-- Python, FastAPI, Uvicorn
-- Stripe API (Checkout)
+- Python
+- FastAPI
+- Uvicorn
+- Stripe API
 - Google Cloud Vision API
-- dotenv / environment variables
+- python-dotenv
 
-## End-to-end flow
-1) Client calls `POST /create-checkout` -> backend creates Stripe Checkout Session and returns a checkout URL
-2) After payment, client calls `POST /analyze-image` with an image -> backend sends it to Google Vision API -> returns labels
+## API Endpoints
+### `POST /create-checkout`
+Creates a Stripe Checkout session and returns a payment URL.
 
-## Setup (local)
-### 1) Create a virtual environment (Conda)
+### `POST /analyze-image`
+Accepts an uploaded image, sends it to Google Vision API, and returns detected labels.
+
+## Local Setup
+
+### 1. Create environment
 ```bash
 conda create -n ai-service-api python=3.11 -y
 conda activate ai-service-api
