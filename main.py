@@ -32,8 +32,8 @@ def create_checkout():
                 "quantity": 1,
             }],
             mode="payment",
-           success_url="http://127.0.0.1:8000/success",
-            cancel_url="http://127.0.0.1:8000/cancel",
+            success_url="https://your-site.com/success",
+            cancel_url="https://your-site.com/cancel",
         )
         return {"url": session.url}
     except Exception as e:
