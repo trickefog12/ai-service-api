@@ -17,6 +17,13 @@ vision_client = vision.ImageAnnotatorClient()
 def home():
     return {"message": "AI Service API is running!"}
 
+@app.get("/success")
+def success():
+    return {"message": "Payment successful"}
+
+@app.get("/cancel")
+def cancel():
+    return {"message": "Payment cancelled"}
 
 @app.post("/create-checkout")
 def create_checkout():
