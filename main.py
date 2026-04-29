@@ -1,5 +1,6 @@
 import os
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from database import SessionLocal, Payment
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from dotenv import load_dotenv
 import stripe
 from google.cloud import vision
@@ -57,3 +58,24 @@ async def analyze_image(file: UploadFile = File(...)):
         return {"labels": labels}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    
+    # Εδώ κανονικά ελέγχουμε την υπογραφή (θα το κάνουμε μετά)
+    # Για τώρα, ας προσομοιώσουμε ότι πήραμε μια επιτυχημένη πληρωμή
+    
+    db = SessionLocal()
+    new_payment = Payment(
+        stripe_id="fake_id_123", # Θα έρχεται από το Stripe
+        email="test@example.com",
+        amount=500,
+        status="completed"
+    )
+    db.add(new_payment)
+    db.commit()
+    db.close()
+    
+    return {"status": "success"}
