@@ -1,4 +1,5 @@
 import os
+import uuid
 from database import SessionLocal, Payment
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from dotenv import load_dotenv
@@ -61,21 +62,20 @@ async def analyze_image(file: UploadFile = File(...)):
 
 @app.post("/webhook")
 async def stripe_webhook(request: Request):
-    payload = await request.body()
-    sig_header = request.headers.get("stripe-signature")
-    
-    # Εδώ κανονικά ελέγχουμε την υπογραφή (θα το κάνουμε μετά)
-    # Για τώρα, ας προσομοιώσουμε ότι πήραμε μια επιτυχημένη πληρωμή
-    
     db = SessionLocal()
-    new_payment = Payment(
-        stripe_id="fake_id_123", # Θα έρχεται από το Stripe
-        email="test@example.com",
-        amount=500,
-        status="completed"
-    )
-    db.add(new_payment)
-    db.commit()
-    db.close()
-    
-    return {"status": "success"}
+    try:
+        new_payment = Payment(
+            stripe_id=str(uuid.uuid4()),
+            email="test@example.com",
+            amount=500,
+            status="completed"
+        )
+        db.add(new_payment)
+        db.commit()
+        db.refresh(new_payment)
+        return {"status": "success", "payment_id": new_payment.stripe_id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
