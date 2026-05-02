@@ -1,5 +1,4 @@
 import os
-import uuid
 from database import SessionLocal, Payment
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from dotenv import load_dotenv
