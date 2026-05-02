@@ -50,17 +50,36 @@ def create_checkout():
 
 
 @app.post("/analyze-image")
-async def analyze_image(file: UploadFile = File(...)):
+async def analyze_image(email: str, file: UploadFile = File(...)):
+    # 1. Έλεγχος στη βάση μας
+    db = SessionLocal()
+    payment = db.query(Payment).filter(Payment.email == email, Payment.status == "completed").first()
+    db.close()
+
+    if not payment:
+        # Αν δεν βρεθεί πληρωμή, πετάμε σφάλμα
+        raise HTTPException(
+            status_code=402, 
+            detail="Payment required. Please pay at /create-checkout first."
+        )
+
+    # 2. Αν υπάρχει πληρωμή, συνεχίζουμε στο Vision API
     try:
         content = await file.read()
         image = vision.Image(content=content)
         response = vision_client.label_detection(image=image)
         labels = [label.description for label in response.label_annotations]
-        return {"labels": labels}
+        
+        return {
+            "user": email,
+            "labels": labels,
+            "message": "Analysis successful. Thank you for your payment!"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+print(f"DEBUG: Webhook secret loaded: {STRIPE_WEBHOOK_SECRET}")
 
 @app.post("/webhook")
 async def stripe_webhook(request: Request):
@@ -68,21 +87,19 @@ async def stripe_webhook(request: Request):
     sig_header = request.headers.get("stripe-signature")
 
     try:
-        # Εδώ η Stripe επαληθεύει ότι το μήνυμα ήρθε όντως από αυτήν!
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except Exception as e:
+        print(f"❌ Webhook Error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Αν η πληρωμή ολοκληρώθηκε επιτυχώς
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        
-        # ΠΑΙΡΝΟΥΜΕ ΤΑ ΠΡΑΓΜΑΤΙΚΑ ΔΕΔΟΜΕΝΑ
-        customer_email = session.get("customer_details", {}).get("email")
-        stripe_id = session.get("id")
-        amount = session.get("amount_total")
+
+        customer_email = session.customer_details.email if session.customer_details else None
+        stripe_id = session.id
+        amount = session.amount_total
 
         db = SessionLocal()
         new_payment = Payment(
@@ -97,3 +114,12 @@ async def stripe_webhook(request: Request):
         print(f"✅ Payment Success for {customer_email}")
 
     return {"status": "success"}
+
+@app.get("/payments")
+def get_payments():
+    db = SessionLocal()
+    try:
+        payments = db.query(Payment).all()
+        return payments
+    finally:
+        db.close()
