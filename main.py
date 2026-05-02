@@ -79,3 +79,12 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+@app.get("/payments")
+def get_payments():
+    db = SessionLocal()
+    try:
+        payments = db.query(Payment).all()
+        return payments
+    finally:
+        db.close()
