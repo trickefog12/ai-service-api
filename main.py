@@ -60,31 +60,40 @@ async def analyze_image(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
 @app.post("/webhook")
 async def stripe_webhook(request: Request):
-    db = SessionLocal()
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
     try:
+        # Εδώ η Stripe επαληθεύει ότι το μήνυμα ήρθε όντως από αυτήν!
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Αν η πληρωμή ολοκληρώθηκε επιτυχώς
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        # ΠΑΙΡΝΟΥΜΕ ΤΑ ΠΡΑΓΜΑΤΙΚΑ ΔΕΔΟΜΕΝΑ
+        customer_email = session.get("customer_details", {}).get("email")
+        stripe_id = session.get("id")
+        amount = session.get("amount_total")
+
+        db = SessionLocal()
         new_payment = Payment(
-            stripe_id=str(uuid.uuid4()),
-            email="test@example.com",
-            amount=500,
+            stripe_id=stripe_id,
+            email=customer_email,
+            amount=amount,
             status="completed"
         )
         db.add(new_payment)
         db.commit()
-        db.refresh(new_payment)
-        return {"status": "success", "payment_id": new_payment.stripe_id}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
         db.close()
+        print(f"✅ Payment Success for {customer_email}")
 
-@app.get("/payments")
-def get_payments():
-    db = SessionLocal()
-    try:
-        payments = db.query(Payment).all()
-        return payments
-    finally:
-        db.close()
+    return {"status": "success"}
