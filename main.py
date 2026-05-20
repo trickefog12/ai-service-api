@@ -26,7 +26,7 @@ def success():
 def cancel():
     return {"message": "Payment cancelled"}
 
-@app.post("/create-checkout")
+@app.post("/create-checkout") 
 def create_checkout():
     try:
         session = stripe.checkout.Session.create(
