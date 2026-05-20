@@ -7,4 +7,4 @@ __pycache__/
 .venv/
 
 *.rtf
-*.rtfd/
+*.rtfd/sql_app.db
