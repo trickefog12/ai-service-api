@@ -1,26 +1,32 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
+import os
+import secrets
+from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Δημιουργούμε το αρχείο της βάσης
-SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sql_app.db")
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# Για Cloud SQL μέσω Cloud Run χρειάζεται αυτό το arg μόνο για SQLite
+connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
-# Ο πίνακας των πληρωμών μας
+
 class Payment(Base):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, index=True)
-    stripe_id = Column(String, unique=True, index=True) # Το ID της πληρωμής από το Stripe
-    email = Column(String)
+    stripe_id = Column(String, unique=True, index=True)
+    email = Column(String, index=True)
+    api_key = Column(String, unique=True, index=True)
     amount = Column(Integer)
-    status = Column(String) # π.χ. "completed"
+    status = Column(String)
 
-# Δημιουργία των πινάκων
+
+def generate_api_key() -> str:
+    return f"sk_{secrets.token_urlsafe(32)}"
+
+
 Base.metadata.create_all(bind=engine)

@@ -1,0 +1,44 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      # Αν αργότερα βάλεις Postgres, θα την ορίσεις εδώ για τα tests
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-mock httpx  # httpx χρειάζεται για τα FastAPI tests
+
+      - name: Run tests with pytest
+        env:
+          # Ορίζουμε ψεύτικα κλειδιά για να μην κρασάρουν τα tests
+          STRIPE_SECRET_KEY: sk_test_mock
+          STRIPE_WEBHOOK_SECRET: whsec_mock
+          DATABASE_URL: sqlite:///./test.db
+        run: |
+          pytest
