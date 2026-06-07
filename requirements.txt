@@ -4,4 +4,3 @@ stripe
 python-dotenv
 google-cloud-vision
 python-multipart
-httpx
