@@ -1,15 +1,17 @@
-# AI-as-a-Service Image Analysis API
+# AI-as-a-Service Image Analysis API (FastAPI + Stripe + Google Vision)
 
-A production-ready backend API that delivers AI-powered image analysis **only after successful payment verification** using Stripe.
+[![Python CI](https://github.com/trickefog12/ai-service-api/actions/workflows/ci.yml/badge.svg)](https://github.com/trickefog12/ai-service-api/actions/workflows/ci.yml)
+
+A SaaS seed / MVP backend API that delivers AI-powered image analysis **only after successful payment verification** via Stripe. After payment, the system issues an **API key** that unlocks the AI analysis endpoint.
 
 ## 🚀 Overview
 
-This project implements a complete SaaS payment + AI workflow:
+This project implements an end-to-end “payment → entitlement → AI” workflow:
 
-1. User initiates payment via Stripe Checkout
-2. Stripe sends a webhook event upon successful payment
-3. Payment is stored in a local database
-4. User gains access to AI-powered image analysis
+1. User initiates payment via **Stripe Checkout**.
+2. Stripe calls a **webhook** on successful payment.
+3. The webhook stores the payment record and generates a unique **API key**.
+4. User calls the AI endpoint with an `X-API-Key` header to access **Google Vision AI** analysis.
 
 The system ensures that **only paying users** can access the AI functionality.
 
@@ -17,12 +19,35 @@ The system ensures that **only paying users** can access the AI functionality.
 
 ## 🧠 Features
 
-- ✅ Secure payment processing with Stripe Checkout
-- ✅ Real-time webhook handling for payment verification
-- ✅ Paywalled AI service (Google Vision API)
-- ✅ RESTful API built with FastAPI
-- ✅ Persistent storage using SQLite & SQLAlchemy
-- ✅ End-to-end SaaS backend architecture
+- ✅ **Secure Payments**: Stripe Checkout session creation (`POST /create-checkout`).
+- ✅ **Webhook Integration**: Stripe webhook verification with idempotent processing (`POST /webhook`).
+- ✅ **Key-Based Access**: API key issuance on payment completion, stored securely in the database.
+- ✅ **AI Paywall**: AI endpoint (`POST /analyze-image`) protected by custom header authentication.
+- ✅ **Vision AI**: Automated label detection using Google Cloud Vision API.
+- ✅ **Persistence**: Database management via **SQLAlchemy** (SQLite for dev, PostgreSQL ready).
+- ✅ **CI/CD Ready**: Automated testing with **Pytest** and **GitHub Actions**.
+
+---
+
+## ⚙️ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | FastAPI (Python), Uvicorn |
+| **Database** | SQLAlchemy (SQLite default; configurable via `DATABASE_URL`) |
+| **Payments** | Stripe API + Webhooks |
+| **AI Service** | Google Cloud Vision API |
+| **Testing / CI** | Pytest + GitHub Actions |
+
+---
+
+## 🔐 Auth & Paywall Model
+
+- The AI endpoint requires an API key sent as an HTTP header:
+  - Header: `X-API-Key: <your_api_key>`
+- **Errors**:
+  - `403 Forbidden`: Missing or invalid API key.
+  - `500 Internal Server Error`: Vision API or processing failure.
 
 ---
 
@@ -33,28 +58,11 @@ Client → POST /create-checkout → Stripe Checkout Page
                                         ↓
                               Stripe Webhook Event
                                         ↓
-                              Database (SQLite) — stores payment
+                      Database (SQLAlchemy) — stores payment + API key
                                         ↓
-                         POST /analyze-image (Paywall Check)
+                 Client → POST /analyze-image (X-API-Key auth)
                                         ↓
-                              Google Cloud Vision API
-                                        ↓
-                              JSON Response with Labels
-```
-
----
-
-## ⚙️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Backend** | FastAPI (Python) |
-| **Database** | SQLite + SQLAlchemy |
-| **Payments** | Stripe API + Webhooks |
-| **AI Service** | Google Cloud Vision API |
-| **Config** | python-dotenv |
-| **Testing** | Stripe CLI |
-
+                           Google Cloud Vision API (labels)
 ---
 
 ## 📡 API Endpoints
@@ -83,9 +91,10 @@ Client → POST /create-checkout → Stripe Checkout Page
 
 ### 1. Create environment
 ```bash
-conda create -n ai-service-api python=3.11 -y
-conda activate ai-service-api
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ### 2. Configure environment variables
@@ -93,7 +102,9 @@ Create a `.env` file:
 ```text
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-GOOGLE_APPLICATION_CREDENTIALS=path/to/credentials.json
+DATABASE_URL=sqlite:///./sql_app.db
+# Local dev only (not needed on Cloud Run)
+GOOGLE_APPLICATION_CREDENTIALS=keys/gcp-service-account.json
 ```
 
 ### 3. Start the API (Terminal 1)
@@ -110,6 +121,15 @@ stripe listen --forward-to localhost:8000/webhook
 ```bash
 stripe trigger checkout.session.completed
 ```
+---
+
+## 🔍 Usage Examples (cURL)
+###Analyze an Image
+{
+curl -X POST "http://127.0.0.1:8000/analyze-image" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -F "file=@/path/to/image.jpg"
+}
 
 ---
 
@@ -117,11 +137,28 @@ stripe trigger checkout.session.completed
 
 ```json
 {
-  "user": "stripe@example.com",
-  "labels": ["Person", "Fitness", "Exercise", "Sport"],
+  "user": "customer@example.com",
+  "labels": ["Sky", "Mountain", "Nature"],
   "message": "Analysis successful. Thank you for your payment!"
 }
 ```
+
+---
+
+## ☁️ Deployment (Google Cloud Run)
+Google Vision Credentials
+In production (Cloud Run), the application uses Application Default Credentials (ADC).
+• Do NOT upload credential JSON files to the container.
+• Attach a Service Account to the Cloud Run service with the Cloud Vision API User role.
+• The vision.ImageAnnotatorClient() in the code is configured to initialize lazily for optimal cold-start performance.
+
+---
+
+## ✅ Production Roadmap
+☐ Implement transactional emails (SendGrid/Postmark) to deliver API keys to users.
+☐ Migrate from SQLite to a managed PostgreSQL instance for production data.
+☐ Add rate limiting per API key to prevent abuse.
+☐ Move secrets (Stripe Keys) from .env to Google Secret Manager.
 
 ---
 
