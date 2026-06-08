@@ -21,7 +21,13 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 # ΣΗΜΑΝΤΙΚΟ: Καμία αναφορά σε GOOGLE_APPLICATION_CREDENTIALS
 # Το Cloud Run χρησιμοποιεί αυτόματα το attached Service Account
 app = FastAPI(title="AI Service API")
-vision_client = vision.ImageAnnotatorClient()
+_vision_client = None
+
+def get_vision_client():
+    global _vision_client
+    if _vision_client is None:
+        _vision_client = vision.ImageAnnotatorClient()
+    return _vision_client
 
 
 # DB session helper — αποφεύγει leaks
@@ -138,7 +144,8 @@ async def analyze_image(
     try:
         content = await file.read()
         image = vision.Image(content=content)
-        response = vision_client.label_detection(image=image)
+        client = get_vision_client()
+        response = client.label_detection(image=image)
         labels = [label.description for label in response.label_annotations]
 
         return {
