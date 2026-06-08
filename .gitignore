@@ -8,3 +8,7 @@ __pycache__/
 
 *.rtf
 *.rtfd/sql_app.db
+venv/
+*.db
+__pycache__/
+.pytest_cache/
