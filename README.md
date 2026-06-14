@@ -4,6 +4,9 @@
 
 A SaaS seed / MVP backend API that delivers AI-powered image analysis **only after successful payment verification** via Stripe. After payment, the system issues an **API key** that unlocks the AI analysis endpoint.
 
+## Live Demo
+https://ai-service-api-226732136794.europe-west3.run.app/docs
+
 ## 🚀 Overview
 
 This project implements an end-to-end “payment → entitlement → AI” workflow:
